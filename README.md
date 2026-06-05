@@ -6,7 +6,8 @@ It talks to the Django backend in
 [`mejomba/moon_strategy`](https://github.com/mejomba/moon_strategy).
 
 > This is **Phase 1/2** of the roadmap: strategy management, backtesting with
-> honest cost reporting, and the skeleton of the no-code visual builder.
+> honest cost reporting, and the no-code visual builder that compiles to an
+> executable logic graph.
 
 ## Stack
 
@@ -77,7 +78,7 @@ src/
     page.tsx               # Dashboard
     strategies/            # list · new · [id] (detail + run backtest)
     backtests/             # list · [id] (metrics report + trades)
-    builder/               # no-code visual builder skeleton (Phase 2)
+    builder/               # no-code visual builder → executable logic graph
   components/              # UI primitives + feature components
   hooks/useAsync.ts        # resilient client data fetching
   lib/

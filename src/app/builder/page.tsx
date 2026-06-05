@@ -1,16 +1,14 @@
 import { PageHeader } from "@/components/PageHeader";
-import { BuilderCanvas } from "@/components/builder/BuilderCanvas";
-import { LegalDisclaimer } from "@/components/LegalDisclaimer";
+import { StrategyBuilder } from "@/components/builder/StrategyBuilder";
 
 export default function BuilderPage() {
   return (
     <div className="space-y-6">
       <PageHeader
         title="Visual builder"
-        description="No-code strategy builder (Phase 2 skeleton). Assemble a logic graph from blocks; it compiles to the strategy-JSON source of truth."
+        description="Assemble indicators and rules — no code. It compiles to the strategy-JSON the backtest engine runs, then save and backtest it."
       />
-      <LegalDisclaimer />
-      <BuilderCanvas />
+      <StrategyBuilder />
     </div>
   );
 }

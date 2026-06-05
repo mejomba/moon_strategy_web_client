@@ -14,7 +14,9 @@ import {
   STRATEGY_KINDS,
   STRATEGY_SCHEMA_VERSION,
   emptyGraph,
+  isStrategyKind,
   type LogicGraph,
+  type ParametricKind,
   type ParamValue,
   type StrategyKind,
   type StrategyModel,
@@ -22,13 +24,19 @@ import {
   type StrategyStatus,
 } from "@/lib/strategy/schema";
 
-/** Reserved key under `parameters` that carries the strategy-JSON envelope. */
+/** Reserved key under `parameters` that carries schema metadata. */
 export const META_KEY = "_meta" as const;
+/** Reserved key under `parameters` holding the executable logic graph. */
+export const GRAPH_KEY = "graph" as const;
 
-/** Shape of the metadata envelope persisted inside `parameters[META_KEY]`. */
+/**
+ * Schema metadata envelope persisted inside `parameters[META_KEY]`. Older
+ * payloads also nested the graph here (`_meta.graph`); it is now stored at the
+ * canonical top-level `parameters.graph`, but legacy data is still read.
+ */
 interface MetaEnvelope {
   schemaVersion: number;
-  graph: LogicGraph | null;
+  graph?: LogicGraph | null;
 }
 
 /** Backend-facing payload for creating/updating a strategy. */
@@ -55,7 +63,9 @@ export function createEmptyModel(kind: StrategyKind = "sma_crossover"): Strategy
 
 /** Default engine parameters for a kind, derived from its declarative spec. */
 export function defaultParameters(kind: StrategyKind): StrategyParameters {
-  const spec = STRATEGY_KINDS[kind];
+  // Graph strategies carry no scalar parameters — the logic lives in the graph.
+  if (!(kind in STRATEGY_KINDS)) return {};
+  const spec = STRATEGY_KINDS[kind as ParametricKind];
   const params: StrategyParameters = {};
   for (const p of spec.params) {
     params[p.key] = p.default;
@@ -76,14 +86,22 @@ export function withKind(model: StrategyModel, kind: StrategyKind): StrategyMode
 export function serializeStrategy(model: StrategyModel): StrategyPayload {
   const meta: MetaEnvelope = {
     schemaVersion: model.schemaVersion || STRATEGY_SCHEMA_VERSION,
-    graph: model.graph,
   };
+  const parameters: Record<string, unknown> = {
+    ...model.parameters,
+    [META_KEY]: meta,
+  };
+  // The executable logic graph lives at the canonical top-level key, which the
+  // backend engine reads directly for graph strategies.
+  if (model.graph) {
+    parameters[GRAPH_KEY] = model.graph;
+  }
   return {
     name: model.name.trim(),
     description: model.description.trim(),
     kind: model.kind,
     status: model.status,
-    parameters: { ...model.parameters, [META_KEY]: meta },
+    parameters,
   };
 }
 
@@ -109,7 +127,7 @@ export function deserializeStrategy(raw: RawStrategy): StrategyModel {
     raw.parameters && typeof raw.parameters === "object"
       ? (raw.parameters as Record<string, unknown>)
       : {};
-  const { [META_KEY]: rawMeta, ...flat } = allParams;
+  const { [META_KEY]: rawMeta, [GRAPH_KEY]: rawGraph, ...flat } = allParams;
 
   const parameters: StrategyParameters = {};
   for (const [key, value] of Object.entries(flat)) {
@@ -119,6 +137,8 @@ export function deserializeStrategy(raw: RawStrategy): StrategyModel {
   }
 
   const meta = (rawMeta ?? {}) as Partial<MetaEnvelope>;
+  // Canonical location first, then the legacy `_meta.graph` fallback.
+  const graph = (rawGraph as LogicGraph | undefined) ?? meta.graph ?? null;
   const model: StrategyModel = {
     schemaVersion: meta.schemaVersion ?? 0,
     name: raw.name ?? "",
@@ -126,7 +146,7 @@ export function deserializeStrategy(raw: RawStrategy): StrategyModel {
     status: normalizeStatus(raw.status),
     kind: normalizeKind(raw.kind),
     parameters,
-    graph: meta.graph ?? null,
+    graph,
   };
 
   return migrate(model);
@@ -158,7 +178,7 @@ export function migrate(model: StrategyModel): StrategyModel {
 }
 
 function normalizeKind(kind: string | undefined): StrategyKind {
-  return kind && kind in STRATEGY_KINDS ? (kind as StrategyKind) : "sma_crossover";
+  return isStrategyKind(kind) ? kind : "sma_crossover";
 }
 
 function normalizeStatus(status: string | undefined): StrategyStatus {

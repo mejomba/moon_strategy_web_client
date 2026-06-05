@@ -8,7 +8,7 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/Feedback";
 import { LinkButton } from "@/components/ui/Button";
 import { useAsync } from "@/hooks/useAsync";
 import { listStrategies } from "@/lib/api/strategies";
-import { STRATEGY_KINDS } from "@/lib/strategy/schema";
+import { kindLabel } from "@/lib/strategy/schema";
 
 /** Client-rendered list of strategies with loading/error/empty states. */
 export function StrategyList({ limit }: { limit?: number }) {
@@ -38,9 +38,7 @@ export function StrategyList({ limit }: { limit?: number }) {
               <p className="font-medium text-zinc-900 dark:text-zinc-50">{s.name}</p>
               <Badge tone={statusTone(s.status ?? "draft")}>{s.status ?? "draft"}</Badge>
             </div>
-            <p className="mt-1 text-xs text-zinc-500">
-              {(s.kind && STRATEGY_KINDS[s.kind]?.label) ?? s.kind}
-            </p>
+            <p className="mt-1 text-xs text-zinc-500">{kindLabel(s.kind)}</p>
             {s.description && (
               <p className="mt-2 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
                 {s.description}

@@ -11,7 +11,7 @@ import { BacktestForm } from "@/components/backtest/BacktestForm";
 import { BacktestList } from "@/components/backtest/BacktestList";
 import { useAsync } from "@/hooks/useAsync";
 import { getStrategyModel } from "@/lib/api/strategies";
-import { STRATEGY_KINDS } from "@/lib/strategy/schema";
+import { kindLabel } from "@/lib/strategy/schema";
 
 export default function StrategyDetailPage({
   params,
@@ -31,27 +31,37 @@ export default function StrategyDetailPage({
   if (!data) return <ErrorState message="Strategy not found." />;
 
   const { model } = data;
-  const spec = STRATEGY_KINDS[model.kind];
+  const isGraph = model.kind === "graph";
 
   return (
     <div className="space-y-8">
       <PageHeader
         title={model.name || `Strategy #${strategyId}`}
-        description={model.description || spec?.description}
+        description={model.description || undefined}
         action={<Badge tone={statusTone(model.status)}>{model.status}</Badge>}
       />
 
       <Card>
-        <CardHeader title="Parameters" subtitle={spec?.label ?? model.kind} />
+        <CardHeader title="Definition" subtitle={kindLabel(model.kind)} />
         <CardBody>
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {Object.entries(model.parameters).map(([key, value]) => (
-              <div key={key} className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
-                <dt className="text-xs uppercase tracking-wide text-zinc-500">{key}</dt>
-                <dd className="font-medium tabular-nums">{String(value)}</dd>
-              </div>
-            ))}
-          </dl>
+          {isGraph ? (
+            <p className="text-sm text-zinc-500">
+              Built with the visual builder · {model.graph?.nodes.length ?? 0} blocks. The
+              logic graph is the executable strategy-JSON the engine runs.
+            </p>
+          ) : (
+            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {Object.entries(model.parameters).map(([key, value]) => (
+                <div
+                  key={key}
+                  className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900"
+                >
+                  <dt className="text-xs uppercase tracking-wide text-zinc-500">{key}</dt>
+                  <dd className="font-medium tabular-nums">{String(value)}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </CardBody>
       </Card>
 
