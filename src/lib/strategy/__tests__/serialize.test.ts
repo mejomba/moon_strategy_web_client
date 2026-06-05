@@ -64,8 +64,9 @@ describe("serialize / deserialize round-trip", () => {
     expect(payload.parameters.fast).toBe(5);
     expect(payload.parameters[META_KEY]).toEqual({
       schemaVersion: STRATEGY_SCHEMA_VERSION,
-      graph: null,
     });
+    // No graph on a parametric strategy.
+    expect(payload.parameters.graph).toBeUndefined();
 
     const back = deserializeStrategy({
       name: payload.name,
@@ -104,10 +105,23 @@ describe("serialize / deserialize round-trip", () => {
       },
     };
 
-    const back = deserializeStrategy({
-      ...serializeStrategy(model),
-    });
+    const payload = serializeStrategy(model);
+    // Graph is stored at the canonical top-level location for the engine.
+    expect(payload.parameters.graph).toEqual(model.graph);
+
+    const back = deserializeStrategy({ ...payload });
     expect(back.graph).toEqual(model.graph);
+  });
+
+  it("reads a graph from the legacy _meta.graph location", () => {
+    const graph = { nodes: [], edges: [] };
+    const model = deserializeStrategy({
+      name: "Legacy graph",
+      kind: "graph",
+      parameters: { _meta: { schemaVersion: 1, graph } },
+    });
+    expect(model.kind).toBe("graph");
+    expect(model.graph).toEqual(graph);
   });
 });
 

@@ -5,6 +5,7 @@
 
 import {
   STRATEGY_KINDS,
+  type ParametricKind,
   type ParamSpec,
   type StrategyModel,
 } from "@/lib/strategy/schema";
@@ -25,7 +26,13 @@ export function validateStrategy(model: StrategyModel): ValidationError[] {
     errors.push({ field: "name", message: "Name must be at most 120 characters." });
   }
 
-  const spec = STRATEGY_KINDS[model.kind];
+  // Graph strategies are validated by the visual builder (validateBuilder), not
+  // by the parametric spec — there are no scalar parameters to check here.
+  if (model.kind === "graph") {
+    return errors;
+  }
+
+  const spec = STRATEGY_KINDS[model.kind as ParametricKind];
   if (!spec) {
     errors.push({ field: "kind", message: `Unknown strategy kind "${model.kind}".` });
     return errors;

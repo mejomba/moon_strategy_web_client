@@ -8,7 +8,14 @@ export default function StrategiesPage() {
       <PageHeader
         title="Strategies"
         description="Your saved strategy definitions."
-        action={<LinkButton href="/strategies/new">New strategy</LinkButton>}
+        action={
+          <div className="flex gap-2">
+            <LinkButton href="/builder" variant="secondary">
+              Build visually
+            </LinkButton>
+            <LinkButton href="/strategies/new">New strategy</LinkButton>
+          </div>
+        }
       />
       <StrategyList />
     </div>

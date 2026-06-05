@@ -3,6 +3,7 @@
 import { Field, Input } from "@/components/ui/Field";
 import {
   STRATEGY_KINDS,
+  type ParametricKind,
   type ParamValue,
   type StrategyKind,
   type StrategyParameters,
@@ -23,7 +24,8 @@ export function ParamFields({
   errors: Record<string, string>;
   onChange: (key: string, value: ParamValue) => void;
 }) {
-  const spec = STRATEGY_KINDS[kind];
+  const spec = kind in STRATEGY_KINDS ? STRATEGY_KINDS[kind as ParametricKind] : null;
+  if (!spec) return null;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">

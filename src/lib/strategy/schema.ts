@@ -15,8 +15,15 @@
 /** Current schema version. Bump when the strategy-JSON shape changes. */
 export const STRATEGY_SCHEMA_VERSION = 1 as const;
 
-/** Engine implementation that backs a strategy (mirrors backend `Strategy.kind`). */
-export type StrategyKind = "sma_crossover" | "rsi";
+/** Strategies configured through the parametric form (fixed indicators). */
+export type ParametricKind = "sma_crossover" | "rsi";
+
+/**
+ * Engine implementation that backs a strategy (mirrors backend `Strategy.kind`).
+ * `graph` strategies are assembled in the visual builder and carry a logic graph
+ * instead of scalar parameters.
+ */
+export type StrategyKind = ParametricKind | "graph";
 
 /** Lifecycle status (mirrors backend `Strategy.Status`). */
 export type StrategyStatus = "draft" | "active" | "archived";
@@ -59,7 +66,7 @@ export interface KindSpec {
  * (`strategy_core/strategies/*`): keys, defaults and bounds mirror the Python
  * strategy classes so a strategy built here runs identically there.
  */
-export const STRATEGY_KINDS: Record<StrategyKind, KindSpec> = {
+export const STRATEGY_KINDS: Record<ParametricKind, KindSpec> = {
   sma_crossover: {
     kind: "sma_crossover",
     label: "SMA Crossover",
@@ -134,6 +141,22 @@ export const STRATEGY_KINDS: Record<StrategyKind, KindSpec> = {
 };
 
 export const STRATEGY_KIND_LIST: KindSpec[] = Object.values(STRATEGY_KINDS);
+
+/** All valid kind values, including the visual-builder `graph` kind. */
+export const STRATEGY_KIND_VALUES: StrategyKind[] = ["sma_crossover", "rsi", "graph"];
+
+export function isStrategyKind(value: string | undefined): value is StrategyKind {
+  return !!value && (STRATEGY_KIND_VALUES as string[]).includes(value);
+}
+
+/** Human-readable label for any kind (parametric or graph). */
+export function kindLabel(kind: string | undefined): string {
+  if (kind === "graph") return "Visual graph";
+  if (kind && kind in STRATEGY_KINDS) {
+    return STRATEGY_KINDS[kind as ParametricKind].label;
+  }
+  return kind ?? "—";
+}
 
 /* -------------------------------------------------------------------------- */
 /* Logic graph (Phase 2 — no-code visual builder)                             */
