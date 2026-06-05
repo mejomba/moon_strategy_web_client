@@ -1,16 +1,17 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
 
 import { Card, CardBody } from "@/components/ui/Card";
 import { ErrorState, Loading } from "@/components/ui/Feedback";
 import { LinkButton } from "@/components/ui/Button";
 import { PageHeader } from "@/components/PageHeader";
 import { StrategyBuilder } from "@/components/builder/StrategyBuilder";
+import { GraphCanvas } from "@/components/builder/GraphCanvas";
 import { useAsync } from "@/hooks/useAsync";
 import { getStrategyModel } from "@/lib/api/strategies";
 import { decompileGraph } from "@/lib/strategy/builder";
+import { emptyGraph } from "@/lib/strategy/schema";
 
 export default function EditStrategyPage({
   params,
@@ -63,20 +64,14 @@ export default function EditStrategyPage({
           initialStatus={model.status}
         />
       ) : (
-        <Card>
-          <CardBody className="space-y-3">
-            <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              This strategy&apos;s graph uses a structure the guided builder can&apos;t
-              represent yet. Open it in the canvas editor to make changes.
-            </p>
-            <Link
-              href={`/builder?strategyId=${strategyId}`}
-              className="text-sm font-medium text-zinc-900 underline dark:text-zinc-100"
-            >
-              Open in canvas editor
-            </Link>
-          </CardBody>
-        </Card>
+        // The graph isn't representable in the guided form — edit it on the canvas.
+        <GraphCanvas
+          strategyId={strategyId}
+          initialGraph={model.graph ?? emptyGraph()}
+          initialName={model.name}
+          initialDescription={model.description}
+          initialStatus={model.status}
+        />
       )}
     </div>
   );

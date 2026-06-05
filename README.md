@@ -78,7 +78,7 @@ src/
     page.tsx               # Dashboard
     strategies/            # list · new · [id] (detail + run backtest)
     backtests/             # list · [id] (metrics report + trades)
-    builder/               # no-code visual builder → executable logic graph
+    builder/               # no-code builder: guided form + React Flow canvas
   components/              # UI primitives + feature components
   hooks/useAsync.ts        # resilient client data fetching
   lib/
