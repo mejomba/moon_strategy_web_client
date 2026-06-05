@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 import { MetricsReport } from "@/components/backtest/MetricsReport";
 import { EquityCurveChart } from "@/components/backtest/EquityCurveChart";
+import { BacktestWarnings } from "@/components/backtest/BacktestWarnings";
 import { TradesTable } from "@/components/backtest/TradesTable";
 import { useAsync } from "@/hooks/useAsync";
 import { getBacktest, listTrades } from "@/lib/api/backtests";
@@ -47,6 +48,7 @@ export default function BacktestDetailPage({
 
       {isComplete ? (
         <>
+          <BacktestWarnings warnings={backtest.warnings} />
           <MetricsReport backtest={backtest} />
           <Card>
             <CardHeader
