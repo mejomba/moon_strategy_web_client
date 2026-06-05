@@ -12,6 +12,7 @@ It talks to the Django backend in
 
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS v4** with a small set of local UI primitives (no heavy UI kit)
+- **Recharts** for performance charts (equity curve)
 - **ESLint** + **Prettier**
 - **Vitest** for unit tests
 

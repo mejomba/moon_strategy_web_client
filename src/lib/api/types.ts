@@ -15,7 +15,12 @@ import type { components } from "@/lib/api/generated";
 type Schemas = components["schemas"];
 
 export type StrategyDTO = Schemas["Strategy"];
+/** Light backtest shape used by list endpoints (no equity curve). */
 export type BacktestDTO = Schemas["Backtest"];
+/** Full backtest shape from retrieve/create, including the equity curve. */
+export type BacktestDetailDTO = Schemas["BacktestDetail"];
+/** One sample of portfolio value over time. */
+export type EquityPoint = Schemas["EquityPoint"];
 export type TradeDTO = Schemas["Trade"];
 
 /** Write payload to create a backtest run. */

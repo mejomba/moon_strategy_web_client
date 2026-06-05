@@ -9,6 +9,7 @@ import { ErrorState, Loading } from "@/components/ui/Feedback";
 import { PageHeader } from "@/components/PageHeader";
 import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 import { MetricsReport } from "@/components/backtest/MetricsReport";
+import { EquityCurveChart } from "@/components/backtest/EquityCurveChart";
 import { TradesTable } from "@/components/backtest/TradesTable";
 import { useAsync } from "@/hooks/useAsync";
 import { getBacktest, listTrades } from "@/lib/api/backtests";
@@ -45,7 +46,21 @@ export default function BacktestDetailPage({
       )}
 
       {isComplete ? (
-        <MetricsReport backtest={backtest} />
+        <>
+          <MetricsReport backtest={backtest} />
+          <Card>
+            <CardHeader
+              title="Equity curve"
+              subtitle="Portfolio value over time, net of trading costs."
+            />
+            <CardBody>
+              <EquityCurveChart
+                points={backtest.equity_curve}
+                initialCapital={Number(backtest.initial_capital)}
+              />
+            </CardBody>
+          </Card>
+        </>
       ) : (
         <Card>
           <CardBody>
