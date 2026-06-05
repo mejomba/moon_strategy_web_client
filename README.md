@@ -38,7 +38,24 @@ agreed shape.
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Run Vitest once |
+| `npm run gen:api` | Regenerate API types from the OpenAPI schema |
 | `npm run format` | Format with Prettier |
+
+## API types (generated)
+
+The wire types are **not hand-written**. The backend (Django + DRF) owns the API
+contract and publishes an **OpenAPI schema**; this repo generates its types from
+it (CLAUDE.md §2/§5):
+
+- `openapi/schema.yaml` — vendored copy of the backend schema (refresh it from
+  the backend's `GET /api/schema/`).
+- `npm run gen:api` → `src/lib/api/generated.ts` (via `openapi-typescript`).
+- `src/lib/api/types.ts` gives those generated components friendly names; the
+  typed client and resources in `src/lib/api/` consume them. Components never
+  import generated types directly.
+
+When the backend changes an endpoint, refresh `openapi/schema.yaml`, rerun
+`npm run gen:api`, and adapt the UI.
 
 ## Architecture
 
@@ -56,7 +73,7 @@ src/
       schema.ts            #   versioned model + logic-graph + param specs
       serialize.ts         #   model ⇄ backend payload, with versioning/migration
       validate.ts          #   pure, UI-agnostic validation
-    api/                   # typed fetch client + shared DTOs (mirror Django)
+    api/                   # typed fetch client + DTOs generated from OpenAPI
     format.ts, config.ts, cn.ts
 ```
 

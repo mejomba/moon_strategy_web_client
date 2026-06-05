@@ -87,14 +87,17 @@ export function serializeStrategy(model: StrategyModel): StrategyPayload {
   };
 }
 
-/** Raw strategy as returned by the backend list/detail endpoints. */
+/**
+ * Raw strategy as returned by the backend. `parameters` is intentionally
+ * `unknown` to match the schema's free-form JSON field; it is narrowed on read.
+ */
 export interface RawStrategy {
   id?: number;
   name?: string;
   description?: string;
   kind?: string;
   status?: string;
-  parameters?: Record<string, unknown> | null;
+  parameters?: unknown;
 }
 
 /**
@@ -102,8 +105,11 @@ export interface RawStrategy {
  * engine parameters from the metadata envelope and migrating older versions.
  */
 export function deserializeStrategy(raw: RawStrategy): StrategyModel {
-  const allParams = raw.parameters ?? {};
-  const { [META_KEY]: rawMeta, ...flat } = allParams as Record<string, unknown>;
+  const allParams =
+    raw.parameters && typeof raw.parameters === "object"
+      ? (raw.parameters as Record<string, unknown>)
+      : {};
+  const { [META_KEY]: rawMeta, ...flat } = allParams;
 
   const parameters: StrategyParameters = {};
   for (const [key, value] of Object.entries(flat)) {
