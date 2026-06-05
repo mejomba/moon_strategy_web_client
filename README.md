@@ -30,6 +30,17 @@ nested `trades` resources. If those endpoints are not up yet, pages render
 graceful loading/empty/error states — the typed contract in `src/lib/api` is the
 agreed shape.
 
+### Accessing from another device (LAN)
+
+When you bind the dev server to `0.0.0.0` and open the app from a machine IP
+(e.g. `http://192.168.1.24:3000`):
+
+1. Add that IP to `NEXT_DEV_ORIGINS` in `.env.local` (otherwise Next blocks the
+   HMR websocket — `ws://…/_next/webpack-hmr` fails to connect).
+2. Point `NEXT_PUBLIC_API_BASE_URL` at the backend's reachable address
+   (`http://192.168.1.24:8000/api`), not `localhost` (which would resolve to the
+   viewing device). The backend already allows private-LAN origins in `DEBUG`.
+
 ## Scripts
 
 | Command | Description |
