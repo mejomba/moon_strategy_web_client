@@ -32,12 +32,12 @@ the UI matter. Never imply guaranteed profits; surface risk and disclaimers clea
 
 ## 2. Tech Stack (this repo)
 
-| Layer | Technology |
-|---|---|
-| Framework | **Next.js** (React) |
-| Language | **TypeScript** (preferred) |
+| Layer | Technology                                                |
+|---|-----------------------------------------------------------|
+| Framework | **Next.js** (React)                                       |
+| Language | **TypeScript** (preferred)                                |
 | Data fetching | Typed client generated from the backend **OpenAPI** schema |
-| Charts | A charting library for performance metrics/equity curves |
+| Charts | A charting library for performance metrics/equity curves  |
 | Strategy format | Intermediate **JSON / logic graph** (shared with backend) |
 
 Constraints:
