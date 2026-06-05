@@ -219,6 +219,69 @@ export interface components {
             funding_interval_hours?: number;
         };
         /**
+         * @description Backtest read representation including the full equity curve.
+         *
+         *     Used for retrieve/create responses; the list endpoint uses the lighter
+         *     :class:`BacktestSerializer` to avoid shipping the curve for every row.
+         */
+        BacktestDetail: {
+            readonly id: number;
+            readonly strategy: number;
+            readonly strategy_name: string;
+            /** @description Instrument ticker, e.g. BTCUSDT */
+            readonly symbol: string;
+            /** @description Candle timeframe, e.g. 1m, 1h, 1d */
+            readonly timeframe: string;
+            /** Format: date */
+            readonly start_date: string;
+            /** Format: date */
+            readonly end_date: string;
+            /** Format: decimal */
+            readonly initial_capital: string;
+            /**
+             * Format: double
+             * @description Taker fee per side, fraction (0.0004 = 0.04%)
+             */
+            readonly commission_pct: number;
+            /**
+             * Format: double
+             * @description Adverse fill per side, basis points
+             */
+            readonly slippage_bps: number;
+            /**
+             * Format: double
+             * @description Half-spread crossed per side, basis points
+             */
+            readonly spread_bps: number;
+            /**
+             * Format: double
+             * @description Funding per interval, fraction (longs pay if > 0)
+             */
+            readonly funding_rate: number;
+            /**
+             * Format: double
+             * @description Hours between funding charges
+             */
+            readonly funding_interval_hours: number;
+            readonly status: components["schemas"]["BacktestStatusEnum"];
+            /** Format: decimal */
+            readonly final_equity: string | null;
+            /** Format: double */
+            readonly total_return_pct: number | null;
+            /** Format: double */
+            readonly max_drawdown_pct: number | null;
+            /** Format: double */
+            readonly sharpe_ratio: number | null;
+            /** Format: double */
+            readonly win_rate_pct: number | null;
+            readonly error_message: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly completed_at: string | null;
+            readonly equity_curve: components["schemas"]["EquityPoint"][];
+        };
+        /**
          * @description * `pending` - Pending
          *     * `running` - Running
          *     * `completed` - Completed
@@ -226,6 +289,19 @@ export interface components {
          * @enum {string}
          */
         BacktestStatusEnum: "pending" | "running" | "completed" | "failed";
+        /** @description One sample of portfolio value on the equity curve. */
+        EquityPoint: {
+            /**
+             * Format: date-time
+             * @description Sample timestamp (ISO-8601).
+             */
+            t: string;
+            /**
+             * Format: double
+             * @description Portfolio value at this time.
+             */
+            equity: number;
+        };
         /**
          * @description * `sma_crossover` - SMA Crossover
          *     * `rsi` - RSI
@@ -407,7 +483,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Backtest"];
+                    "application/json": components["schemas"]["BacktestDetail"];
                 };
             };
         };
@@ -429,7 +505,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Backtest"];
+                    "application/json": components["schemas"]["BacktestDetail"];
                 };
             };
         };

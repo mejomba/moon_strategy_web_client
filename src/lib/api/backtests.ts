@@ -6,6 +6,7 @@
 import { api, unwrapList } from "@/lib/api/client";
 import type {
   BacktestDTO,
+  BacktestDetailDTO,
   CreateBacktestPayload,
   Paginated,
   TradeDTO,
@@ -28,15 +29,15 @@ export async function listBacktests(
 export async function getBacktest(
   id: number,
   signal?: AbortSignal,
-): Promise<BacktestDTO> {
-  return api.get<BacktestDTO>(`${RESOURCE}${id}/`, undefined, signal);
+): Promise<BacktestDetailDTO> {
+  return api.get<BacktestDetailDTO>(`${RESOURCE}${id}/`, undefined, signal);
 }
 
 /** Queue a new backtest run. The backend executes and fills in metrics. */
 export async function createBacktest(
   payload: CreateBacktestPayload,
-): Promise<BacktestDTO> {
-  return api.post<BacktestDTO>(RESOURCE, payload);
+): Promise<BacktestDetailDTO> {
+  return api.post<BacktestDetailDTO>(RESOURCE, payload);
 }
 
 export async function listTrades(
