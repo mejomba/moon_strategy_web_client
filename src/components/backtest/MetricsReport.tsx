@@ -54,9 +54,21 @@ export function MetricsReport({ backtest }: { backtest: BacktestDTO }) {
       <Metric label="Sharpe ratio" value={formatNumber(backtest.sharpe_ratio)} />
       <Metric label="Win rate" value={formatPercentPlain(backtest.win_rate_pct)} />
       <Metric
+        label="Commission paid"
+        value={formatCurrency(backtest.total_commission)}
+        valueClass="text-zinc-700 dark:text-zinc-300"
+        hint={`assumes ${(backtest.commission_pct * 100).toFixed(3)}% per side`}
+      />
+      <Metric
+        label="Funding paid"
+        value={formatCurrency(backtest.total_funding)}
+        valueClass="text-zinc-700 dark:text-zinc-300"
+        hint={`every ${backtest.funding_interval_hours}h`}
+      />
+      <Metric
         label="Cost assumptions"
-        value={`${(backtest.commission_pct * 100).toFixed(3)}%`}
-        hint={`commission · ${backtest.slippage_bps}bps slip · ${backtest.spread_bps}bps spread`}
+        value={`${backtest.slippage_bps}/${backtest.spread_bps} bps`}
+        hint="slippage / spread per side"
       />
     </div>
   );

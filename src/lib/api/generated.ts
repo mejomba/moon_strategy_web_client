@@ -116,7 +116,10 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description Read representation of a backtest run, including aggregate metrics. */
+        /**
+         * @description Read representation of a backtest run, including aggregate metrics,
+         *     cost breakdown, and reliability warnings.
+         */
         Backtest: {
             readonly id: number;
             readonly strategy: number;
@@ -167,6 +170,11 @@ export interface components {
             readonly sharpe_ratio: number | null;
             /** Format: double */
             readonly win_rate_pct: number | null;
+            /** Format: decimal */
+            readonly total_commission: string | null;
+            /** Format: decimal */
+            readonly total_funding: string | null;
+            readonly warnings: components["schemas"]["QualityWarning"][];
             readonly error_message: string;
             /** Format: date-time */
             readonly created_at: string;
@@ -274,6 +282,11 @@ export interface components {
             readonly sharpe_ratio: number | null;
             /** Format: double */
             readonly win_rate_pct: number | null;
+            /** Format: decimal */
+            readonly total_commission: string | null;
+            /** Format: decimal */
+            readonly total_funding: string | null;
+            readonly warnings: components["schemas"]["QualityWarning"][];
             readonly error_message: string;
             /** Format: date-time */
             readonly created_at: string;
@@ -372,6 +385,15 @@ export interface components {
             readonly created_at?: string;
             /** Format: date-time */
             readonly updated_at?: string;
+        };
+        /** @description A reliability/overfitting caveat about a backtest result. */
+        QualityWarning: {
+            /** @description Stable warning identifier. */
+            code: string;
+            /** @description "info" or "warning". */
+            severity: string;
+            /** @description Human-readable explanation. */
+            message: string;
         };
         /**
          * @description * `long` - Long

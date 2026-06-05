@@ -21,6 +21,8 @@ export type BacktestDTO = Schemas["Backtest"];
 export type BacktestDetailDTO = Schemas["BacktestDetail"];
 /** One sample of portfolio value over time. */
 export type EquityPoint = Schemas["EquityPoint"];
+/** A reliability / overfitting caveat about a backtest result. */
+export type QualityWarning = Schemas["QualityWarning"];
 export type TradeDTO = Schemas["Trade"];
 
 /** Write payload to create a backtest run. */
