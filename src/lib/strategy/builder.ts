@@ -1,16 +1,19 @@
 /**
- * No-code builder model and its compiler to the executable logic graph
- * (CLAUDE.md §4). The builder's UI model is intentionally separate from the
- * emitted {@link LogicGraph}: a non-coder defines named indicators and a few
- * entry/exit conditions, and `compileToGraph` lowers that into the shared,
- * backend-executable strategy-JSON.
+ * No-code builder model and its compiler/decompiler for the executable logic
+ * graph (CLAUDE.md §4). The builder's UI model is intentionally separate from
+ * the emitted {@link LogicGraph}: a non-coder defines named indicators and a few
+ * entry/exit conditions (combined with AND/OR, optionally negated), picks a
+ * direction (long or short), and `compileToGraph` lowers that into the shared,
+ * backend-executable strategy-JSON. `decompileGraph` recovers the model from a
+ * graph this compiler produced, so saved strategies can be re-edited.
  *
  * Pure and framework-agnostic so it can be unit tested in isolation.
  */
 
 import {
-  type GraphNode,
+  emptyGraph,
   type GraphEdge,
+  type GraphNode,
   type LogicGraph,
   type ParamValue,
 } from "@/lib/strategy/schema";
@@ -18,6 +21,8 @@ import {
 export type PriceSource = "open" | "high" | "low" | "close";
 export type IndicatorOp = "price" | "sma" | "ema" | "rsi" | "constant";
 export type Comparator = "greater_than" | "less_than" | "crosses_above" | "crosses_below";
+export type Combinator = "and" | "or";
+export type Direction = "long" | "short";
 
 /** A named numeric input the user can reference in conditions. */
 export interface BuilderIndicator {
@@ -28,19 +33,27 @@ export interface BuilderIndicator {
   value: number; // constant
 }
 
-/** A single comparison between two indicators. */
+/** A single comparison between two indicators, optionally negated (NOT). */
 export interface BuilderCondition {
   id: string;
   left: string; // indicator id
   comparator: Comparator;
   right: string; // indicator id
+  negate: boolean;
 }
 
-/** The full builder model: indicators plus AND-combined entry/exit rules. */
+/** A set of conditions combined with AND or OR. */
+export interface RuleGroup {
+  combinator: Combinator;
+  conditions: BuilderCondition[];
+}
+
+/** The full builder model. */
 export interface StrategyBuilderModel {
   indicators: BuilderIndicator[];
-  entry: BuilderCondition[];
-  exit: BuilderCondition[];
+  direction: Direction;
+  entry: RuleGroup;
+  exit: RuleGroup;
 }
 
 export const INDICATOR_OPS: { op: IndicatorOp; label: string }[] = [
@@ -68,11 +81,20 @@ export function newIndicator(op: IndicatorOp = "sma"): BuilderIndicator {
 }
 
 export function newCondition(left = "", right = ""): BuilderCondition {
-  return { id: uid("cond"), left, comparator: "crosses_above", right };
+  return { id: uid("cond"), left, comparator: "crosses_above", right, negate: false };
+}
+
+export function emptyRuleGroup(): RuleGroup {
+  return { combinator: "and", conditions: [] };
 }
 
 export function emptyBuilderModel(): StrategyBuilderModel {
-  return { indicators: [], entry: [], exit: [] };
+  return {
+    indicators: [],
+    direction: "long",
+    entry: emptyRuleGroup(),
+    exit: emptyRuleGroup(),
+  };
 }
 
 /** Trader-friendly label for an indicator, e.g. "SMA(20) close" or "100". */
@@ -115,12 +137,12 @@ export function validateBuilder(model: StrategyBuilderModel): ValidationError[] 
     }
   }
 
-  if (model.entry.length === 0) {
+  if (model.entry.conditions.length === 0) {
     errors.push({ field: "entry", message: "Add at least one entry condition." });
   }
 
-  const checkConditions = (conds: BuilderCondition[], where: string) => {
-    for (const c of conds) {
+  const checkConditions = (group: RuleGroup, where: string) => {
+    for (const c of group.conditions) {
       if (!ids.has(c.left) || !ids.has(c.right)) {
         errors.push({
           field: c.id,
@@ -150,9 +172,10 @@ function indicatorParams(ind: BuilderIndicator): Record<string, ParamValue | str
 }
 
 /**
- * Lower the builder model into the shared {@link LogicGraph}. Each indicator
- * becomes an indicator node; each condition a condition node wired to its two
- * indicators; entry/exit conditions are AND-combined into the matching signal.
+ * Lower the builder model into the shared {@link LogicGraph}. Each indicator is
+ * an indicator node; each condition a condition node wired to its two indicators
+ * (negated ones routed through a `not` node); a group's conditions are combined
+ * with its AND/OR node and fed into the matching signal.
  */
 export function compileToGraph(model: StrategyBuilderModel): LogicGraph {
   const nodes: GraphNode[] = [];
@@ -173,7 +196,8 @@ export function compileToGraph(model: StrategyBuilderModel): LogicGraph {
     });
   });
 
-  const conditionNode = (c: BuilderCondition, y: number): string => {
+  // Returns the boolean output node id for a condition (through `not` if negated).
+  const conditionOutput = (c: BuilderCondition, y: number): string => {
     nodes.push({
       id: c.id,
       type: "condition",
@@ -183,55 +207,156 @@ export function compileToGraph(model: StrategyBuilderModel): LogicGraph {
     });
     edge(c.left, c.id, "a");
     edge(c.right, c.id, "b");
-    return c.id;
+    if (!c.negate) return c.id;
+    const notId = `${c.id}_not`;
+    nodes.push({
+      id: notId,
+      type: "logic",
+      op: "not",
+      params: {},
+      position: { x: 2, y },
+    });
+    edge(c.id, notId);
+    return notId;
   };
 
-  // Combine a list of condition nodes into a single boolean output id.
-  const combine = (
-    conds: BuilderCondition[],
-    tag: string,
-    baseY: number,
-  ): string | null => {
-    const condIds = conds.map((c, i) => conditionNode(c, baseY + i));
-    if (condIds.length === 0) return null;
-    if (condIds.length === 1) return condIds[0];
-    const andId = `${tag}_and`;
+  // Combine a group's conditions into a single boolean output id (or null).
+  const combine = (group: RuleGroup, tag: string, baseY: number): string | null => {
+    const outs = group.conditions.map((c, i) => conditionOutput(c, baseY + i));
+    if (outs.length === 0) return null;
+    if (outs.length === 1) return outs[0];
+    const logicId = `${tag}_${group.combinator}`;
     nodes.push({
-      id: andId,
+      id: logicId,
       type: "logic",
-      op: "and",
+      op: group.combinator,
       params: {},
-      position: { x: 2, y: baseY },
+      position: { x: 3, y: baseY },
     });
-    for (const id of condIds) edge(id, andId);
-    return andId;
+    for (const id of outs) edge(id, logicId);
+    return logicId;
   };
 
   const entryOut = combine(model.entry, "entry", 0);
   if (entryOut) {
-    const enterId = "enter_long";
-    nodes.push({
-      id: enterId,
-      type: "signal",
-      op: "enter_long",
-      params: {},
-      position: { x: 3, y: 0 },
-    });
-    edge(entryOut, enterId, "in");
+    const op = model.direction === "short" ? "enter_short" : "enter_long";
+    nodes.push({ id: op, type: "signal", op, params: {}, position: { x: 4, y: 0 } });
+    edge(entryOut, op, "in");
   }
 
   const exitOut = combine(model.exit, "exit", 100);
   if (exitOut) {
-    const exitId = "exit";
     nodes.push({
-      id: exitId,
+      id: "exit",
       type: "signal",
       op: "exit",
       params: {},
-      position: { x: 3, y: 2 },
+      position: { x: 4, y: 2 },
     });
-    edge(exitOut, exitId, "in");
+    edge(exitOut, "exit", "in");
   }
 
   return { nodes, edges };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Decompilation (graph → builder model) for editing                          */
+/* -------------------------------------------------------------------------- */
+
+const COMPARATOR_SET = new Set<string>([
+  "greater_than",
+  "less_than",
+  "crosses_above",
+  "crosses_below",
+]);
+
+/**
+ * Recover a builder model from a graph this compiler produced. Returns `null`
+ * if the graph does not match the guided shape (e.g. it was hand-edited in the
+ * canvas), so callers can fall back to the freeform editor.
+ */
+export function decompileGraph(
+  graph: LogicGraph | null | undefined,
+): StrategyBuilderModel | null {
+  if (!graph) return null;
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
+  const incoming = (id: string): GraphEdge[] =>
+    graph.edges.filter((e) => e.target === id);
+  const sourceOn = (id: string, port: string): string | undefined =>
+    incoming(id).find((e) => e.targetPort === port)?.source;
+
+  const indicators: BuilderIndicator[] = [];
+  for (const n of graph.nodes) {
+    if (n.type !== "indicator") continue;
+    const p = n.params ?? {};
+    indicators.push({
+      id: n.id,
+      op: n.op as IndicatorOp,
+      source: (p.source as PriceSource) ?? "close",
+      period: typeof p.period === "number" ? p.period : 20,
+      value: typeof p.value === "number" ? p.value : 0,
+    });
+  }
+  const indicatorIds = new Set(indicators.map((i) => i.id));
+
+  // Resolve a boolean output node into a builder condition (handles `not`).
+  const toCondition = (nodeId: string): BuilderCondition | null => {
+    let node = byId.get(nodeId);
+    if (!node) return null;
+    let negate = false;
+    if (node.type === "logic" && node.op === "not") {
+      negate = true;
+      const inner = incoming(node.id)[0]?.source;
+      if (!inner) return null;
+      node = byId.get(inner);
+    }
+    if (!node || node.type !== "condition" || !COMPARATOR_SET.has(node.op)) return null;
+    const left = sourceOn(node.id, "a");
+    const right = sourceOn(node.id, "b");
+    if (!left || !right || !indicatorIds.has(left) || !indicatorIds.has(right))
+      return null;
+    return { id: node.id, left, comparator: node.op as Comparator, right, negate };
+  };
+
+  // Resolve a signal's input into a rule group (single condition or and/or).
+  const toGroup = (signalId: string): RuleGroup | null => {
+    const src = incoming(signalId)[0]?.source;
+    if (!src) return null;
+    const node = byId.get(src);
+    if (!node) return null;
+    if (node.type === "logic" && (node.op === "and" || node.op === "or")) {
+      const conditions: BuilderCondition[] = [];
+      for (const e of incoming(node.id)) {
+        const c = toCondition(e.source);
+        if (!c) return null;
+        conditions.push(c);
+      }
+      return { combinator: node.op, conditions };
+    }
+    const single = toCondition(src);
+    return single ? { combinator: "and", conditions: [single] } : null;
+  };
+
+  const longSignal = graph.nodes.find((n) => n.op === "enter_long");
+  const shortSignal = graph.nodes.find((n) => n.op === "enter_short");
+  const exitSignal = graph.nodes.find((n) => n.op === "exit");
+  const entrySignal = longSignal ?? shortSignal;
+  if (!entrySignal) return null;
+
+  const entry = toGroup(entrySignal.id);
+  if (!entry) return null;
+  const exit = exitSignal ? toGroup(exitSignal.id) : emptyRuleGroup();
+  if (!exit) return null;
+
+  return {
+    indicators,
+    direction: shortSignal && !longSignal ? "short" : "long",
+    entry,
+    exit,
+  };
+}
+
+/** Ensure a non-null graph for previews. */
+export function safeGraph(graph: LogicGraph | null): LogicGraph {
+  return graph ?? emptyGraph();
 }

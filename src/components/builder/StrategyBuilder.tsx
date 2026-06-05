@@ -8,17 +8,21 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { ErrorState } from "@/components/ui/Feedback";
 import { LegalDisclaimer } from "@/components/LegalDisclaimer";
-import { createStrategy } from "@/lib/api/strategies";
+import { createStrategy, updateStrategy } from "@/lib/api/strategies";
 import { createEmptyModel } from "@/lib/strategy/serialize";
+import type { StrategyStatus } from "@/lib/strategy/schema";
 import {
   COMPARATORS,
   INDICATOR_OPS,
   PRICE_SOURCES,
   type BuilderCondition,
   type BuilderIndicator,
+  type Combinator,
   type Comparator,
+  type Direction,
   type IndicatorOp,
   type PriceSource,
+  type RuleGroup as RuleGroupModel,
   type StrategyBuilderModel,
   compileToGraph,
   indicatorLabel,
@@ -33,16 +37,36 @@ function seedModel(): StrategyBuilderModel {
   const slow: BuilderIndicator = { ...newIndicator("sma"), id: "slow", period: 30 };
   return {
     indicators: [fast, slow],
-    entry: [{ ...newCondition("fast", "slow"), comparator: "crosses_above" }],
-    exit: [{ ...newCondition("fast", "slow"), comparator: "crosses_below" }],
+    direction: "long",
+    entry: {
+      combinator: "and",
+      conditions: [{ ...newCondition("fast", "slow"), comparator: "crosses_above" }],
+    },
+    exit: {
+      combinator: "and",
+      conditions: [{ ...newCondition("fast", "slow"), comparator: "crosses_below" }],
+    },
   };
 }
 
-export function StrategyBuilder() {
+export function StrategyBuilder({
+  initialModel,
+  initialName = "",
+  initialDescription = "",
+  initialStatus = "draft",
+  strategyId,
+}: {
+  initialModel?: StrategyBuilderModel;
+  initialName?: string;
+  initialDescription?: string;
+  initialStatus?: StrategyStatus;
+  strategyId?: number;
+}) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [model, setModel] = useState<StrategyBuilderModel>(seedModel);
+  const isEdit = strategyId !== undefined;
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  const [model, setModel] = useState<StrategyBuilderModel>(initialModel ?? seedModel);
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +75,6 @@ export function StrategyBuilder() {
   const errorFields = useMemo(() => new Set(errors.map((e) => e.field)), [errors]);
   const graph = useMemo(() => compileToGraph(model), [model]);
 
-  // -- indicator editing ------------------------------------------------------
   function addIndicator() {
     setModel((m) => ({ ...m, indicators: [...m.indicators, newIndicator("sma")] }));
   }
@@ -62,19 +85,31 @@ export function StrategyBuilder() {
     }));
   }
   function removeIndicator(id: string) {
+    const keep = (g: RuleGroupModel): RuleGroupModel => ({
+      ...g,
+      conditions: g.conditions.filter((c) => c.left !== id && c.right !== id),
+    });
     setModel((m) => ({
       ...m,
       indicators: m.indicators.filter((i) => i.id !== id),
-      entry: m.entry.filter((c) => c.left !== id && c.right !== id),
-      exit: m.exit.filter((c) => c.left !== id && c.right !== id),
+      entry: keep(m.entry),
+      exit: keep(m.exit),
     }));
   }
 
-  // -- condition editing ------------------------------------------------------
+  function patchGroup(group: "entry" | "exit", patch: Partial<RuleGroupModel>) {
+    setModel((m) => ({ ...m, [group]: { ...m[group], ...patch } }));
+  }
   function addCondition(group: "entry" | "exit") {
     const first = model.indicators[0]?.id ?? "";
     const second = model.indicators[1]?.id ?? first;
-    setModel((m) => ({ ...m, [group]: [...m[group], newCondition(first, second)] }));
+    setModel((m) => ({
+      ...m,
+      [group]: {
+        ...m[group],
+        conditions: [...m[group].conditions, newCondition(first, second)],
+      },
+    }));
   }
   function updateCondition(
     group: "entry" | "exit",
@@ -83,11 +118,22 @@ export function StrategyBuilder() {
   ) {
     setModel((m) => ({
       ...m,
-      [group]: m[group].map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      [group]: {
+        ...m[group],
+        conditions: m[group].conditions.map((c) =>
+          c.id === id ? { ...c, ...patch } : c,
+        ),
+      },
     }));
   }
   function removeCondition(group: "entry" | "exit", id: string) {
-    setModel((m) => ({ ...m, [group]: m[group].filter((c) => c.id !== id) }));
+    setModel((m) => ({
+      ...m,
+      [group]: {
+        ...m[group],
+        conditions: m[group].conditions.filter((c) => c.id !== id),
+      },
+    }));
   }
 
   async function handleSave() {
@@ -105,10 +151,13 @@ export function StrategyBuilder() {
         ...createEmptyModel("graph"),
         name,
         description,
+        status: initialStatus,
         graph: compileToGraph(model),
       };
-      const created = await createStrategy(strategy);
-      router.push(`/strategies/${created.id}`);
+      const saved = isEdit
+        ? await updateStrategy(strategyId!, strategy)
+        : await createStrategy(strategy);
+      router.push(`/strategies/${saved.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save strategy.");
       setSaving(false);
@@ -119,7 +168,7 @@ export function StrategyBuilder() {
     <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
       <div className="space-y-6">
         <Card>
-          <CardHeader title="Strategy" subtitle="Name your strategy" />
+          <CardHeader title="Strategy" subtitle="Name and direction" />
           <CardBody className="space-y-4">
             <Field
               label="Name"
@@ -141,6 +190,22 @@ export function StrategyBuilder() {
                 placeholder="Optional"
                 onChange={(e) => setDescription(e.target.value)}
               />
+            </Field>
+            <Field
+              label="Trade direction"
+              htmlFor="dir"
+              hint="Go long (buy) or short (sell) on entry."
+            >
+              <Select
+                id="dir"
+                value={model.direction}
+                onChange={(e) =>
+                  setModel((m) => ({ ...m, direction: e.target.value as Direction }))
+                }
+              >
+                <option value="long">Long (buy)</option>
+                <option value="short">Short (sell)</option>
+              </Select>
             </Field>
           </CardBody>
         </Card>
@@ -172,12 +237,14 @@ export function StrategyBuilder() {
         </Card>
 
         <RuleGroup
-          title="Entry rules"
-          subtitle="Go long when ALL of these are true"
-          group="entry"
-          conditions={model.entry}
+          title={
+            model.direction === "short" ? "Entry rules (short)" : "Entry rules (long)"
+          }
+          subtitle="Open the position when these are true"
+          group={model.entry}
           indicators={model.indicators}
           errorFields={errorFields}
+          onCombinator={(combinator) => patchGroup("entry", { combinator })}
           onAdd={() => addCondition("entry")}
           onUpdate={(id, patch) => updateCondition("entry", id, patch)}
           onRemove={(id) => removeCondition("entry", id)}
@@ -185,11 +252,11 @@ export function StrategyBuilder() {
 
         <RuleGroup
           title="Exit rules"
-          subtitle="Close the position when ALL of these are true (optional)"
-          group="exit"
-          conditions={model.exit}
+          subtitle="Close the position when these are true (optional)"
+          group={model.exit}
           indicators={model.indicators}
           errorFields={errorFields}
+          onCombinator={(combinator) => patchGroup("exit", { combinator })}
           onAdd={() => addCondition("exit")}
           onUpdate={(id, patch) => updateCondition("exit", id, patch)}
           onRemove={(id) => removeCondition("exit", id)}
@@ -204,7 +271,7 @@ export function StrategyBuilder() {
 
         <div className="flex justify-end">
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving…" : "Save strategy"}
+            {saving ? "Saving…" : isEdit ? "Save changes" : "Save strategy"}
           </Button>
         </div>
       </div>
@@ -308,19 +375,19 @@ function RuleGroup({
   title,
   subtitle,
   group,
-  conditions,
   indicators,
   errorFields,
+  onCombinator,
   onAdd,
   onUpdate,
   onRemove,
 }: {
   title: string;
   subtitle: string;
-  group: "entry" | "exit";
-  conditions: BuilderCondition[];
+  group: RuleGroupModel;
   indicators: BuilderIndicator[];
   errorFields: Set<string>;
+  onCombinator: (c: Combinator) => void;
   onAdd: () => void;
   onUpdate: (id: string, patch: Partial<BuilderCondition>) => void;
   onRemove: (id: string) => void;
@@ -342,7 +409,20 @@ function RuleGroup({
         }
       />
       <CardBody className="space-y-2">
-        {conditions.map((c) => (
+        {group.conditions.length > 1 && (
+          <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            Combine with
+            <Select
+              className="w-24"
+              value={group.combinator}
+              onChange={(e) => onCombinator(e.target.value as Combinator)}
+            >
+              <option value="and">ALL (AND)</option>
+              <option value="or">ANY (OR)</option>
+            </Select>
+          </label>
+        )}
+        {group.conditions.map((c) => (
           <div
             key={c.id}
             className={`flex flex-wrap items-center gap-2 rounded-lg border p-2 ${
@@ -351,6 +431,15 @@ function RuleGroup({
                 : "border-zinc-200 dark:border-zinc-800"
             }`}
           >
+            <label className="flex items-center gap-1 text-xs text-zinc-500">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-zinc-300"
+                checked={c.negate}
+                onChange={(e) => onUpdate(c.id, { negate: e.target.checked })}
+              />
+              NOT
+            </label>
             <Select
               className="grow basis-32"
               value={c.left}
@@ -391,12 +480,8 @@ function RuleGroup({
             </Button>
           </div>
         ))}
-        {conditions.length === 0 && (
-          <p className="text-sm text-zinc-500">
-            {group === "entry"
-              ? "Add at least one entry condition."
-              : "No exit rule yet."}
-          </p>
+        {group.conditions.length === 0 && (
+          <p className="text-sm text-zinc-500">No conditions yet.</p>
         )}
       </CardBody>
     </Card>
