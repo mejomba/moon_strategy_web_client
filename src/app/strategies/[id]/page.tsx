@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 
 import { Badge, statusTone } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { ErrorState, Loading } from "@/components/ui/Feedback";
 import { PageHeader } from "@/components/PageHeader";
@@ -38,7 +39,20 @@ export default function StrategyDetailPage({
       <PageHeader
         title={model.name || `Strategy #${strategyId}`}
         description={model.description || undefined}
-        action={<Badge tone={statusTone(model.status)}>{model.status}</Badge>}
+        action={
+          <div className="flex items-center gap-3">
+            {isGraph && (
+              <LinkButton
+                href={`/strategies/${strategyId}/edit`}
+                variant="secondary"
+                size="sm"
+              >
+                Edit
+              </LinkButton>
+            )}
+            <Badge tone={statusTone(model.status)}>{model.status}</Badge>
+          </div>
+        }
       />
 
       <Card>
