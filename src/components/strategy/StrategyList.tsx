@@ -36,10 +36,10 @@ export function StrategyList({ limit }: { limit?: number }) {
           <Card className="h-full px-4 py-3 transition hover:border-zinc-300 hover:shadow dark:hover:border-zinc-700">
             <div className="flex items-start justify-between gap-2">
               <p className="font-medium text-zinc-900 dark:text-zinc-50">{s.name}</p>
-              <Badge tone={statusTone(s.status)}>{s.status}</Badge>
+              <Badge tone={statusTone(s.status ?? "draft")}>{s.status ?? "draft"}</Badge>
             </div>
             <p className="mt-1 text-xs text-zinc-500">
-              {STRATEGY_KINDS[s.kind]?.label ?? s.kind}
+              {(s.kind && STRATEGY_KINDS[s.kind]?.label) ?? s.kind}
             </p>
             {s.description && (
               <p className="mt-2 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">

@@ -48,7 +48,20 @@ export function BacktestForm({ strategyId }: { strategyId: number }) {
     e.preventDefault();
     setRunning(true);
     setError(null);
-    const payload: CreateBacktestPayload = { strategy: strategyId, ...form };
+    const payload: CreateBacktestPayload = {
+      strategy: strategyId,
+      symbol: form.symbol,
+      timeframe: form.timeframe,
+      start_date: form.start_date,
+      end_date: form.end_date,
+      // Decimal field: the schema types it as a string.
+      initial_capital: String(form.initial_capital),
+      commission_pct: form.commission_pct,
+      slippage_bps: form.slippage_bps,
+      spread_bps: form.spread_bps,
+      funding_rate: form.funding_rate,
+      funding_interval_hours: form.funding_interval_hours,
+    };
     try {
       const created = await createBacktest(payload);
       router.push(`/backtests/${created.id}`);
