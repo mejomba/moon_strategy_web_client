@@ -11,6 +11,7 @@ import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 import { useAsync } from "@/hooks/useAsync";
 import { createBacktest } from "@/lib/api/backtests";
 import { listDatasets } from "@/lib/api/marketdata";
+import { clampDate, dateOnly } from "@/lib/dateRange";
 import { formatDate } from "@/lib/format";
 import type { CreateBacktestPayload } from "@/lib/api/types";
 
@@ -48,9 +49,30 @@ export function BacktestForm({ strategyId }: { strategyId: number }) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  // Coverage of the dataset matching the current symbol/timeframe (if any).
+  const selectedDataset = (datasets.data ?? []).find(
+    (d) => d.symbol === form.symbol && d.timeframe === form.timeframe,
+  );
+  const coverageStart = dateOnly(selectedDataset?.start);
+  const coverageEnd = dateOnly(selectedDataset?.end);
+
   function pickDataset(value: string) {
     const ds = (datasets.data ?? []).find((d) => `${d.symbol}|${d.timeframe}` === value);
-    if (ds) setForm((f) => ({ ...f, symbol: ds.symbol, timeframe: ds.timeframe }));
+    if (!ds) return;
+    // Auto-clamp the run window to the dataset's available coverage.
+    const start = dateOnly(ds.start);
+    const end = dateOnly(ds.end);
+    setForm((f) => ({
+      ...f,
+      symbol: ds.symbol,
+      timeframe: ds.timeframe,
+      start_date: start ?? f.start_date,
+      end_date: end ?? f.end_date,
+    }));
+  }
+
+  function setDate(key: "start_date" | "end_date", value: string) {
+    set(key, clampDate(value, coverageStart, coverageEnd));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -125,20 +147,32 @@ export function BacktestForm({ strategyId }: { strategyId: number }) {
               onChange={(e) => set("timeframe", e.target.value)}
             />
           </Field>
-          <Field label="Start date" htmlFor="start_date">
+          <Field
+            label="Start date"
+            htmlFor="start_date"
+            hint={coverageStart ? `Data from ${formatDate(coverageStart)}` : undefined}
+          >
             <Input
               id="start_date"
               type="date"
+              min={coverageStart}
+              max={coverageEnd}
               value={form.start_date}
-              onChange={(e) => set("start_date", e.target.value)}
+              onChange={(e) => setDate("start_date", e.target.value)}
             />
           </Field>
-          <Field label="End date" htmlFor="end_date">
+          <Field
+            label="End date"
+            htmlFor="end_date"
+            hint={coverageEnd ? `Data to ${formatDate(coverageEnd)}` : undefined}
+          >
             <Input
               id="end_date"
               type="date"
+              min={coverageStart}
+              max={coverageEnd}
               value={form.end_date}
-              onChange={(e) => set("end_date", e.target.value)}
+              onChange={(e) => setDate("end_date", e.target.value)}
             />
           </Field>
           <Field label="Initial capital" htmlFor="capital">
