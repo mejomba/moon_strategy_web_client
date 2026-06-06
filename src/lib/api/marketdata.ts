@@ -10,8 +10,20 @@ import type { components } from "@/lib/api/generated";
 export type DatasetDTO = components["schemas"]["Dataset"];
 export type ImportResultDTO = components["schemas"]["ImportResult"];
 
+export type DatasetDeleteResultDTO = components["schemas"]["DatasetDeleteResult"];
+
 export async function listDatasets(signal?: AbortSignal): Promise<DatasetDTO[]> {
   return api.get<DatasetDTO[]>("/marketdata/datasets/", undefined, signal);
+}
+
+/** Delete all candles for a (symbol, timeframe) dataset. */
+export async function deleteDataset(
+  symbol: string,
+  timeframe: string,
+): Promise<DatasetDeleteResultDTO> {
+  return api.delete<DatasetDeleteResultDTO>(
+    `/marketdata/datasets/${encodeURIComponent(symbol)}/${encodeURIComponent(timeframe)}/`,
+  );
 }
 
 /**

@@ -91,6 +91,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/marketdata/datasets/{symbol}/{timeframe}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** @description Delete all candles for a (symbol, timeframe) dataset. */
+        delete: operations["marketdata_datasets_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/marketdata/import/": {
         parameters: {
             query?: never;
@@ -355,6 +372,13 @@ export interface components {
             start: string | null;
             /** Format: date-time */
             end: string | null;
+        };
+        /** @description Result of deleting a dataset. */
+        DatasetDeleteResult: {
+            symbol: string;
+            timeframe: string;
+            /** @description Number of candles removed. */
+            deleted: number;
         };
         /** @description One sample of portfolio value on the equity curve. */
         EquityPoint: {
@@ -642,6 +666,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Dataset"][];
+                };
+            };
+        };
+    };
+    marketdata_datasets_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                symbol: string;
+                timeframe: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetDeleteResult"];
                 };
             };
         };
