@@ -78,6 +78,7 @@ src/
     page.tsx               # Dashboard
     strategies/            # list · new · [id] (detail + run backtest)
     backtests/             # list · [id] (metrics report + trades)
+    marketdata/            # import OHLCV CSV + list stored datasets
     builder/               # no-code builder: guided form + React Flow canvas
   components/              # UI primitives + feature components
   hooks/useAsync.ts        # resilient client data fetching
