@@ -74,6 +74,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/marketdata/datasets/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List the stored (symbol, timeframe) series and their coverage. */
+        get: operations["marketdata_datasets_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/marketdata/import/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Import a CSV of OHLCV candles for a symbol/timeframe (validated on ingest). */
+        post: operations["marketdata_import_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/strategies/": {
         parameters: {
             query?: never;
@@ -302,6 +336,26 @@ export interface components {
          * @enum {string}
          */
         BacktestStatusEnum: "pending" | "running" | "completed" | "failed";
+        /** @description Multipart payload to import a CSV of OHLCV candles. */
+        CandleImport: {
+            symbol: string;
+            timeframe: string;
+            /**
+             * Format: uri
+             * @description CSV with columns: timestamp, open, high, low, close[, volume].
+             */
+            file: string;
+        };
+        /** @description A stored (symbol, timeframe) series with its coverage. */
+        Dataset: {
+            symbol: string;
+            timeframe: string;
+            count: number;
+            /** Format: date-time */
+            start: string | null;
+            /** Format: date-time */
+            end: string | null;
+        };
         /** @description One sample of portfolio value on the equity curve. */
         EquityPoint: {
             /**
@@ -315,12 +369,28 @@ export interface components {
              */
             equity: number;
         };
+        /** @description Summary of an import run. */
+        ImportResult: {
+            symbol: string;
+            timeframe: string;
+            imported: number;
+            /** @description New candles written (excludes existing). */
+            stored: number;
+            skipped: number;
+            duplicates: number;
+            errors: string[];
+            /** Format: date-time */
+            start: string | null;
+            /** Format: date-time */
+            end: string | null;
+        };
         /**
          * @description * `sma_crossover` - SMA Crossover
          *     * `rsi` - RSI
+         *     * `graph` - Graph
          * @enum {string}
          */
-        KindEnum: "sma_crossover" | "rsi";
+        KindEnum: "sma_crossover" | "rsi" | "graph";
         PaginatedBacktestList: {
             /** @example 123 */
             count: number;
@@ -553,6 +623,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedTradeList"];
+                };
+            };
+        };
+    };
+    marketdata_datasets_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dataset"][];
+                };
+            };
+        };
+    };
+    marketdata_import_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CandleImport"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandleImport"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResult"];
                 };
             };
         };

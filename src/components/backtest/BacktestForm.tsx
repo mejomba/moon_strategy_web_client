@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
-import { Field, Input } from "@/components/ui/Field";
+import { Field, Input, Select } from "@/components/ui/Field";
 import { ErrorState } from "@/components/ui/Feedback";
 import { LegalDisclaimer } from "@/components/LegalDisclaimer";
+import { useAsync } from "@/hooks/useAsync";
 import { createBacktest } from "@/lib/api/backtests";
+import { listDatasets } from "@/lib/api/marketdata";
+import { formatDate } from "@/lib/format";
 import type { CreateBacktestPayload } from "@/lib/api/types";
 
 /** Default cost assumptions mirror the backend `Backtest` model defaults (§7). */
@@ -39,9 +42,15 @@ export function BacktestForm({ strategyId }: { strategyId: number }) {
   });
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const datasets = useAsync((signal) => listDatasets(signal));
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function pickDataset(value: string) {
+    const ds = (datasets.data ?? []).find((d) => `${d.symbol}|${d.timeframe}` === value);
+    if (ds) setForm((f) => ({ ...f, symbol: ds.symbol, timeframe: ds.timeframe }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,6 +85,32 @@ export function BacktestForm({ strategyId }: { strategyId: number }) {
       <Card>
         <CardHeader title="Market & period" />
         <CardBody className="grid gap-4 sm:grid-cols-2">
+          {(datasets.data ?? []).length > 0 && (
+            <div className="sm:col-span-2">
+              <Field
+                label="Use stored dataset"
+                htmlFor="dataset"
+                hint="Pick imported data, or type a symbol below for the synthetic fallback."
+              >
+                <Select
+                  id="dataset"
+                  value={`${form.symbol}|${form.timeframe}`}
+                  onChange={(e) => pickDataset(e.target.value)}
+                >
+                  <option value="">— Custom / synthetic —</option>
+                  {(datasets.data ?? []).map((d) => (
+                    <option
+                      key={`${d.symbol}|${d.timeframe}`}
+                      value={`${d.symbol}|${d.timeframe}`}
+                    >
+                      {d.symbol} · {d.timeframe} ({formatDate(d.start)}–
+                      {formatDate(d.end)})
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+          )}
           <Field label="Symbol" htmlFor="symbol" hint="Crypto pair, e.g. BTCUSDT">
             <Input
               id="symbol"
