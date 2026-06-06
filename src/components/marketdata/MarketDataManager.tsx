@@ -7,7 +7,12 @@ import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Feedback";
 import { useAsync } from "@/hooks/useAsync";
-import { importCandles, listDatasets, type ImportResultDTO } from "@/lib/api/marketdata";
+import {
+  deleteDataset,
+  importCandles,
+  listDatasets,
+  type ImportResultDTO,
+} from "@/lib/api/marketdata";
 import { formatDate, formatNumber } from "@/lib/format";
 
 export function MarketDataManager() {
@@ -18,7 +23,24 @@ export function MarketDataManager() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResultDTO | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleDelete(sym: string, tf: string) {
+    const key = `${sym}|${tf}`;
+    if (!window.confirm(`Delete all ${sym} · ${tf} candles? This cannot be undone.`)) {
+      return;
+    }
+    setDeleting(key);
+    try {
+      await deleteDataset(sym, tf);
+      reload();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Delete failed.");
+    } finally {
+      setDeleting(null);
+    }
+  }
 
   async function handleImport(e: React.FormEvent) {
     e.preventDefault();
@@ -123,6 +145,7 @@ export function MarketDataManager() {
                     <th className="px-2 py-2 font-medium">TF</th>
                     <th className="px-2 py-2 text-right font-medium">Candles</th>
                     <th className="px-2 py-2 font-medium">Coverage</th>
+                    <th className="px-2 py-2"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -138,6 +161,18 @@ export function MarketDataManager() {
                       </td>
                       <td className="px-2 py-2 text-xs text-zinc-500">
                         {formatDate(d.start)} → {formatDate(d.end)}
+                      </td>
+                      <td className="px-2 py-2 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={deleting === `${d.symbol}|${d.timeframe}`}
+                          onClick={() => handleDelete(d.symbol, d.timeframe)}
+                        >
+                          {deleting === `${d.symbol}|${d.timeframe}`
+                            ? "Deleting…"
+                            : "Delete"}
+                        </Button>
                       </td>
                     </tr>
                   ))}
