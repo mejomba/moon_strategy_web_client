@@ -10,7 +10,10 @@ import { PageHeader } from "@/components/PageHeader";
 import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 import { MetricsReport } from "@/components/backtest/MetricsReport";
 import { EquityCurveChart } from "@/components/backtest/EquityCurveChart";
+import { DrawdownChart } from "@/components/backtest/DrawdownChart";
+import { MonthlyReturns } from "@/components/backtest/MonthlyReturns";
 import { BacktestWarnings } from "@/components/backtest/BacktestWarnings";
+import { TradeStats } from "@/components/backtest/TradeStats";
 import { TradesTable } from "@/components/backtest/TradesTable";
 import { useAsync } from "@/hooks/useAsync";
 import { getBacktest, listTrades } from "@/lib/api/backtests";
@@ -62,6 +65,24 @@ export default function BacktestDetailPage({
               />
             </CardBody>
           </Card>
+          <Card>
+            <CardHeader
+              title="Drawdown"
+              subtitle="Decline from the running equity peak (downside risk)."
+            />
+            <CardBody>
+              <DrawdownChart points={backtest.equity_curve} />
+            </CardBody>
+          </Card>
+          <Card>
+            <CardHeader title="Monthly returns" />
+            <CardBody>
+              <MonthlyReturns
+                points={backtest.equity_curve}
+                initialCapital={Number(backtest.initial_capital)}
+              />
+            </CardBody>
+          </Card>
         </>
       ) : (
         <Card>
@@ -88,13 +109,16 @@ export default function BacktestDetailPage({
             </Link>
           }
         />
-        <CardBody>
+        <CardBody className="space-y-5">
           {trades.loading ? (
             <Loading label="Loading trades…" />
           ) : trades.error ? (
             <ErrorState message={trades.error} />
           ) : (
-            <TradesTable trades={trades.data ?? []} />
+            <>
+              <TradeStats trades={trades.data ?? []} />
+              <TradesTable trades={trades.data ?? []} />
+            </>
           )}
         </CardBody>
       </Card>
