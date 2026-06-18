@@ -14,6 +14,7 @@ import {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
+  useReactFlow,
   type Connection,
   type Edge,
   type Node,
@@ -187,6 +188,7 @@ function GraphCanvasInner({
   strategyId?: number;
 }) {
   const router = useRouter();
+  const { screenToFlowPosition } = useReactFlow();
   const isEdit = strategyId !== undefined;
   const seeded = useMemo(() => toFlow(initialGraph), [initialGraph]);
 
@@ -204,12 +206,13 @@ function GraphCanvasInner({
   );
 
   const addNode = useCallback(
-    (op: string) => {
-      const bp = PALETTE.find((p) => p.op === op)!;
+    (op: string, position?: { x: number; y: number }) => {
+      const bp = PALETTE.find((p) => p.op === op);
+      if (!bp) return;
       const node: FlowNode = {
         id: newNodeId(),
         type: "card",
-        position: { x: COLUMN[bp.category], y: 40 + nodes.length * 20 },
+        position: position ?? { x: COLUMN[bp.category], y: 40 + nodes.length * 20 },
         data: {
           category: bp.category,
           op: bp.op,
@@ -220,6 +223,26 @@ function GraphCanvasInner({
       setNodes((ns) => [...ns, node]);
     },
     [nodes.length, setNodes],
+  );
+
+  // Drag a palette item onto the canvas to drop a node at the cursor.
+  const onDragStart = (e: React.DragEvent, op: string) => {
+    e.dataTransfer.setData("application/strategy-op", op);
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const op = e.dataTransfer.getData("application/strategy-op");
+      if (!op) return;
+      const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      addNode(op, position);
+    },
+    [screenToFlowPosition, addNode],
   );
 
   const graph: LogicGraph = useMemo(
@@ -320,14 +343,17 @@ function GraphCanvasInner({
 
       <div className="grid gap-4 lg:grid-cols-[12rem_1fr_16rem]">
         <Card className="h-fit">
-          <CardHeader title="Add block" />
+          <CardHeader title="Add block" subtitle="Drag onto the canvas, or click" />
           <CardBody className="space-y-1">
             {PALETTE.map((p) => (
               <button
                 key={p.op}
                 type="button"
+                draggable
+                onDragStart={(e) => onDragStart(e, p.op)}
                 onClick={() => addNode(p.op)}
-                className={`w-full rounded-md border px-2 py-1 text-left text-xs ${CATEGORY_TONE[p.category]}`}
+                title="Drag onto the canvas or click to add"
+                className={`w-full cursor-grab rounded-md border px-2 py-1 text-left text-xs active:cursor-grabbing ${CATEGORY_TONE[p.category]}`}
               >
                 {p.label}
               </button>
@@ -335,7 +361,11 @@ function GraphCanvasInner({
           </CardBody>
         </Card>
 
-        <div className="h-[32rem] overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+        <div
+          className="h-[32rem] overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+        >
           <ReactFlow
             nodes={nodes}
             edges={edges}

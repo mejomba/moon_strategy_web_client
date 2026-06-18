@@ -77,7 +77,7 @@ src/
   app/                     # App Router pages
     page.tsx               # Dashboard
     strategies/            # list · new · [id] (detail + run backtest)
-    backtests/             # list · [id] (metrics report + trades)
+    backtests/             # list · [id] (metrics, equity, drawdown, monthly returns, trade stats)
     marketdata/            # import OHLCV CSV + list stored datasets
     builder/               # no-code builder: guided form + React Flow canvas
   components/              # UI primitives + feature components

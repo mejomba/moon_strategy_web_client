@@ -11,7 +11,6 @@
  */
 
 import {
-  emptyGraph,
   type GraphEdge,
   type GraphNode,
   type LogicGraph,
@@ -88,15 +87,6 @@ export function emptyRuleGroup(): RuleGroup {
   return { combinator: "and", conditions: [] };
 }
 
-export function emptyBuilderModel(): StrategyBuilderModel {
-  return {
-    indicators: [],
-    direction: "long",
-    entry: emptyRuleGroup(),
-    exit: emptyRuleGroup(),
-  };
-}
-
 /** Trader-friendly label for an indicator, e.g. "SMA(20) close" or "100". */
 export function indicatorLabel(ind: BuilderIndicator): string {
   switch (ind.op) {
@@ -155,10 +145,6 @@ export function validateBuilder(model: StrategyBuilderModel): ValidationError[] 
   checkConditions(model.exit, "Exit");
 
   return errors;
-}
-
-export function isValidBuilder(model: StrategyBuilderModel): boolean {
-  return validateBuilder(model).length === 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -354,9 +340,4 @@ export function decompileGraph(
     entry,
     exit,
   };
-}
-
-/** Ensure a non-null graph for previews. */
-export function safeGraph(graph: LogicGraph | null): LogicGraph {
-  return graph ?? emptyGraph();
 }

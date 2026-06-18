@@ -13,7 +13,6 @@
 import {
   STRATEGY_KINDS,
   STRATEGY_SCHEMA_VERSION,
-  emptyGraph,
   isStrategyKind,
   type LogicGraph,
   type ParametricKind,
@@ -183,17 +182,4 @@ function normalizeKind(kind: string | undefined): StrategyKind {
 
 function normalizeStatus(status: string | undefined): StrategyStatus {
   return status === "active" || status === "archived" ? status : "draft";
-}
-
-/** Stable JSON string of the strategy-JSON, handy for export/diffing. */
-export function toJSON(model: StrategyModel): string {
-  return JSON.stringify(serializeStrategy(model), null, 2);
-}
-
-/** Build a model from a fresh graph (Phase 2 builder entry point). */
-export function modelFromGraph(
-  kind: StrategyKind,
-  graph: LogicGraph = emptyGraph(),
-): StrategyModel {
-  return { ...createEmptyModel(kind), graph };
 }
